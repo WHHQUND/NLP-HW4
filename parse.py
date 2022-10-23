@@ -307,6 +307,7 @@ class Item:
     rule: Rule
     dot_position: int
     start_position: int
+    #weight : float
     # We don't store the end_position, which corresponds to the column
     # that the item is in, although you could store it redundantly for 
     # debugging purposes if you wanted.
@@ -322,7 +323,10 @@ class Item:
     def with_dot_advanced(self) -> Item:
         if self.next_symbol() is None:
             raise IndexError("Can't advance the dot past the end of the rule")
+        #return Item(rule=self.rule, dot_position=self.dot_position + 1, start_position=self.start_position, weight = self.rule.weight + self.weight)
         return Item(rule=self.rule, dot_position=self.dot_position + 1, start_position=self.start_position)
+    #def cur_rule_weight(self) -> float:
+    #    return self.rule.weight
 
     def __repr__(self) -> str:
         """Complete string used to show this item at the command line"""
@@ -330,8 +334,12 @@ class Item:
         rhs = list(self.rule.rhs)  # Make a copy.
         rhs.insert(self.dot_position, DOT)
         dotted_rule = f"{self.rule.lhs} → {' '.join(rhs)}"
-        return f"({self.start_position}, {dotted_rule})"  # matches notation on slides
-
+        return f"({self.start_position},{self.rule.weight}, {dotted_rule})"  # matches notation on slides
+    '''
+    def __getitem__(self):
+        dotted_rule = f"{self.rule.lhs} → {' '.join(rhs)}"
+        return list(({self.start_position},{self.rule.weight}, {dotted_rule}))
+    '''
 
 def main():
     # Parse the command-line arguments
@@ -352,7 +360,7 @@ def main():
                 print(
                     f"'{sentence}' is {'accepted' if chart.accepted() else 'rejected'} by {args.grammar}"
                 )
-                log.debug(f'chart here: {chart.cols}')
+                print(chart.cols[0].all()[2].rule.weight)
                 log.debug(f"Profile of work done: {chart.profile}")
 
 
