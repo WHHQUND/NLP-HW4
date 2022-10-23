@@ -120,22 +120,22 @@ class EarleyChart:
                 else:
                     # Try to scan the terminal after the dot
                     log.debug(f"{item} => SCAN")
-                    self._scan(item, i)            
+                    self._scan(item, i,idx=idx)            
                 idx += 1          
 
     def _predict(self, nonterminal: str, position: int) -> None:
         """Start looking for this nonterminal at the given position."""
         for rule in self.grammar.expansions(nonterminal):
-            new_item = Item(rule, dot_position=0, start_position=position)
+            new_item = Item(rule, dot_position=0, start_position=position,backpointer_paires=((None,None),(None,None)))
             self.cols[position].push(new_item)
             log.debug(f"\tPredicted: {new_item} in column {position}")
             self.profile["PREDICT"] += 1
 
-    def _scan(self, item: Item, position: int) -> None:
+    def _scan(self, item: Item, position: int, idx : int) -> None:
         """Attach the next word to this item that ends at position, 
         if it matches what this item is looking for next."""
         if position < len(self.tokens) and self.tokens[position] == item.next_symbol():
-            new_item = item.with_dot_advanced()
+            new_item = item.with_dot_advanced(((idx, position), (None, None)))
             self.cols[position + 1].push(new_item)
             log.debug(f"\tScanned to get: {new_item} in column {position+1}")
             self.profile["SCAN"] += 1
@@ -340,7 +340,9 @@ class Item:
         rhs = list(self.rule.rhs)  # Make a copy.
         rhs.insert(self.dot_position, DOT)
         dotted_rule = f"{self.rule.lhs} → {' '.join(rhs)}"
-        return f"({self.start_position},{self.rule.weight}, {dotted_rule})"  # matches notation on slides
+        #return f"({self.start_position},{self.rule.weight},{self.backpointer_paires} {dotted_rule})"  # matches notation on slides
+        return f"({self.start_position},{self.backpointer_paires} {dotted_rule})"  # matches notation on slides
+    
     '''
     def __getitem__(self):
         dotted_rule = f"{self.rule.lhs} → {' '.join(rhs)}"
@@ -366,7 +368,7 @@ def main():
                 print(
                     f"'{sentence}' is {'accepted' if chart.accepted() else 'rejected'} by {args.grammar}"
                 )
-                print(chart.cols[0].all()[2].rule.weight)
+                print(chart.cols)
                 log.debug(f"Profile of work done: {chart.profile}")
 
 
