@@ -104,13 +104,15 @@ class EarleyChart:
                                    disable=not self.progress):
             log.debug("")
             log.debug(f"Processing items in column {i}")
+            idx = 0
             while column:    # while agenda isn't empty
+                
                 item = column.pop()   # dequeue the next unprocessed item
                 next = item.next_symbol();
                 if next is None:
                     # Attach this complete constituent to its customers
                     log.debug(f"{item} => ATTACH")
-                    self._attach(item, i)   
+                    self._attach(item, i, idx)   
                 elif self.grammar.is_nonterminal(next):
                     # Predict the nonterminal after the dot
                     log.debug(f"{item} => PREDICT")
@@ -118,7 +120,8 @@ class EarleyChart:
                 else:
                     # Try to scan the terminal after the dot
                     log.debug(f"{item} => SCAN")
-                    self._scan(item, i)                      
+                    self._scan(item, i)            
+                idx += 1          
 
     def _predict(self, nonterminal: str, position: int) -> None:
         """Start looking for this nonterminal at the given position."""
@@ -137,18 +140,20 @@ class EarleyChart:
             log.debug(f"\tScanned to get: {new_item} in column {position+1}")
             self.profile["SCAN"] += 1
 
-    def _attach(self, item: Item, position: int) -> None:
+    def _attach(self, item: Item, position: int, cur_row: int) -> None:
         """Attach this complete item to its customers in previous columns, advancing the
         customers' dots to create new items in this column.  (This operation is sometimes
         called "complete," but actually it attaches an item that was already complete.)
         """
         mid = item.start_position   # start position of this item = end position of item to its left
-        for customer in self.cols[mid].all():  # could you eliminate this inefficient linear search?
+        for idx, customer in enumerate(self.cols[mid].all()):  # could you eliminate this inefficient linear search?
             if customer.next_symbol() == item.rule.lhs:
-                new_item = customer.with_dot_advanced()
+                backpointer = ((idx,mid),(cur_row,position))
+                new_item = customer.with_dot_advanced(backpointer=backpointer)
                 self.cols[position].push(new_item)
                 log.debug(f"\tAttached to get: {new_item} in column {position}")
                 self.profile["ATTACH"] += 1
+
 
 
 class Agenda:
@@ -307,6 +312,7 @@ class Item:
     rule: Rule
     dot_position: int
     start_position: int
+    backpointer_paires : tuple(tuple,tuple)
     #weight : float
     # We don't store the end_position, which corresponds to the column
     # that the item is in, although you could store it redundantly for 
@@ -320,11 +326,11 @@ class Item:
         else:
             return self.rule.rhs[self.dot_position]
 
-    def with_dot_advanced(self) -> Item:
+    def with_dot_advanced(self, backpointer) -> Item:
         if self.next_symbol() is None:
             raise IndexError("Can't advance the dot past the end of the rule")
         #return Item(rule=self.rule, dot_position=self.dot_position + 1, start_position=self.start_position, weight = self.rule.weight + self.weight)
-        return Item(rule=self.rule, dot_position=self.dot_position + 1, start_position=self.start_position)
+        return Item(rule=self.rule, dot_position=self.dot_position + 1, start_position=self.start_position, backpointer_paires=backpointer)
     #def cur_rule_weight(self) -> float:
     #    return self.rule.weight
 
